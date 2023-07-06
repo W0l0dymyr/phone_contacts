@@ -1,16 +1,18 @@
 package com.example.phonecontactsapplication.entities;
 
 import jakarta.persistence.*;
+import lombok.*;
 
+@Data
 @Entity
 @Table(name = "users")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-@Column(name = "login")
+    @Column(name = "login")
     private String login;
-@Column(name = "password")
+    @Column(name = "password")
     private String password;
 
     public Long getId() {
@@ -23,10 +25,6 @@ public class User {
 
     public void setLogin(String login) {
         this.login = login;
-    }
-
-    public String getPassword() {
-        return password;
     }
 
     public void setPassword(String password) {
