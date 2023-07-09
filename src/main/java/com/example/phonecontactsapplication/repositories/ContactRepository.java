@@ -9,7 +9,6 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     Contact findByName(String name);
 
-//    boolean isNameAlreadyExists(String name);
-//
 
+    boolean existsByName(String name);
 }

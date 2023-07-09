@@ -1,14 +1,14 @@
 package com.example.phonecontactsapplication.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Entity
 @Table(name = "contacts")
+
 public class Contact {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -27,6 +27,7 @@ public class Contact {
     private Set<String> phoneNumbers = new HashSet<>();
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     public User getUser() {
@@ -36,11 +37,6 @@ public class Contact {
     public void setUser(User user) {
         this.user = user;
     }
-//    @OneToMany(mappedBy = "contact", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private List<Email> emails = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "contact", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private List<PhoneNumber> phoneNumbers = new ArrayList<>();
 
     public Long getId() {
         return id;
@@ -74,19 +70,5 @@ public class Contact {
         this.phoneNumbers = phoneNumbers;
     }
 
-//    public List<Email> getEmails() {
-//        return emails;
-//    }
-//
-//    public void setEmails(List<Email> emails) {
-//        this.emails = emails;
-//    }
-//
-//    public List<PhoneNumber> getPhoneNumbers() {
-//        return phoneNumbers;
-//    }
-//
-//    public void setPhoneNumbers(List<PhoneNumber> phoneNumbers) {
-//        this.phoneNumbers = phoneNumbers;
-//    }
+
 }

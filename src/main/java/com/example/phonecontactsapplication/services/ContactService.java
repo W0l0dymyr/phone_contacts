@@ -1,8 +1,9 @@
 package com.example.phonecontactsapplication.services;
 
 import com.example.phonecontactsapplication.entities.Contact;
-import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.repositories.ContactRepository;
+import com.example.phonecontactsapplication.repositories.UserRepository;
+import com.example.phonecontactsapplication.utils.JwtTokenUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,11 @@ import java.util.Set;
 public class ContactService {
     @Autowired
     private ContactRepository contactRepository;
+    @Autowired
+    private JwtTokenUtils tokenUtils;
+
+    @Autowired
+    private UserRepository userRepository;
 
     public List<Contact> findAll() {
         return contactRepository.findAll();
@@ -58,7 +64,7 @@ public class ContactService {
         return false;
     }
 
-    public ResponseEntity<?> addContact(Contact contact, User user) {
+    public ResponseEntity<?> addContact(Contact contact, String authorizationHeader) {
         if (contactRepository.findByName(contact.getName()) != null) {
             return ResponseEntity.ok("Contact with that name exists");
         }
@@ -86,9 +92,9 @@ public class ContactService {
                 return ResponseEntity.ok("Contact with that phone number exists");
             }
         }
-
+        String token = authorizationHeader.substring(7);
         // Додавання контакту
-        contact.setUser(user);
+        contact.setUser(userRepository.findByLogin(tokenUtils.getUsername(token)));
         Contact addedContact = contactRepository.save(contact);
         return ResponseEntity.ok("Contact has been added");
     }
@@ -140,7 +146,7 @@ public class ContactService {
         }
 
         // Перевірка, чи існує контакт з новим ім'ям, виключаючи поточний контакт
-        if (!existingContact.getName().equals(newContact.getName()) && contactRepository.findByName(newContact.getName())!=null) {
+        if (!existingContact.getName().equals(newContact.getName()) && contactRepository.findByName(newContact.getName()) != null) {
             return ResponseEntity.ok("Contact with that name already exists");
         }
 
@@ -173,5 +179,5 @@ public class ContactService {
         Contact updatedContact = contactRepository.save(existingContact);
         return ResponseEntity.ok(updatedContact);
     }
-
 }
+

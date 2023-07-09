@@ -34,24 +34,25 @@ public class AuthService {
         String token = jwtTokenUtils.generateToken(userDetails);
         return ResponseEntity.ok(new JwtResponse(token));
     }
-public ResponseEntity<?> createNewUser(@RequestBody RegistrationUserDto registrationUserDto) {
-    String login = registrationUserDto.getLogin();
-    String password = registrationUserDto.getPassword();
 
-    // Перевірка на порожні значення
-    if (login == null || login.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login cannot be empty");
-    }
-    if (password == null || password.isEmpty()) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Password cannot be empty");
-    }
+    public ResponseEntity<?> createNewUser(@RequestBody RegistrationUserDto registrationUserDto) {
+        String login = registrationUserDto.getLogin();
+        String password = registrationUserDto.getPassword();
 
-    if (userService.findByLogin(login).isPresent()) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login already exists");
-    }
+        // Перевірка на порожні значення
+        if (login == null || login.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login cannot be empty");
+        }
+        if (password == null || password.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Password cannot be empty");
+        }
 
-    User user = userService.createNewUser(registrationUserDto);
-    return ResponseEntity.ok("User " + user.getLogin() + " is successfully registered");
-}
+        if (userService.findByLogin(login).isPresent()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login already exists");
+        }
+
+        User user = userService.createNewUser(registrationUserDto);
+        return ResponseEntity.ok("User " + user.getLogin() + " is successfully registered");
+    }
 
 }
