@@ -1,6 +1,7 @@
 package com.example.phonecontactsapplication.services;
 
 import com.example.phonecontactsapplication.entities.Contact;
+import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.repositories.ContactRepository;
 import com.example.phonecontactsapplication.repositories.UserRepository;
 import com.example.phonecontactsapplication.utils.JwtTokenUtils;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
@@ -21,25 +23,32 @@ public class ContactService {
     @Autowired
     private UserRepository userRepository;
 
-    public List<Contact> findAll() {
-        return contactRepository.findAll();
+    public List<Contact> findAll(User user) {
+        return contactRepository.findByUser(user);
     }
 
-    public Contact findByName(String name) {
-        return contactRepository.findByName(name);
+    public Contact findByName(String name, User user) {
+        return user.getContacts().stream().filter(c->c.getName().equals(name)).findAny().orElse(null);
     }
 
-    public boolean delete(String name) {
-        Contact contact = contactRepository.findByName(name);
+    public boolean delete(String name, User user) {
+        Contact contact = user.getContacts().stream()
+                .filter(c -> c.getName().equals(name))
+                .findAny()
+                .orElse(null);
+
         if (contact == null) {
             return false;
         }
+        user.getContacts().remove(contact);
         contactRepository.delete(contact);
+
         return true;
     }
 
-    public boolean isEmailAlreadyExists(String email, Contact existingContact) {
-        List<Contact> contacts = contactRepository.findAll();
+
+    public boolean isEmailAlreadyExists(String email, Contact existingContact, User user) {
+        List<Contact> contacts = user.getContacts();
         for (Contact contact : contacts) {
             if (contact.equals(existingContact)) {
                 continue; // Ігноруємо перевірку для існуючого контакту
@@ -53,8 +62,8 @@ public class ContactService {
     }
 
 
-    private boolean isEmailAlreadyExists(String email) {
-        List<Contact> contacts = contactRepository.findAll();
+    private boolean isEmailAlreadyExists(String email, User user) {
+        List<Contact> contacts = user.getContacts();
         for (Contact contact : contacts) {
             Set<String> emails = contact.getEmails();
             if (emails.contains(email)) {
@@ -64,8 +73,8 @@ public class ContactService {
         return false;
     }
 
-    public ResponseEntity<?> addContact(Contact contact, String authorizationHeader) {
-        if (contactRepository.findByName(contact.getName()) != null) {
+    public ResponseEntity<?> addContact(Contact contact, String authorizationHeader, User user) throws IOException {
+        if (user.getContacts().stream().anyMatch(c->c.getName().equals(contact.getName()))) {
             return ResponseEntity.ok("Contact with that name exists");
         }
         for (String email : contact.getEmails()) {
@@ -81,26 +90,26 @@ public class ContactService {
         }
         // Перевірка унікальності електронних адрес контакту
         for (String email : contact.getEmails()) {
-            if (isEmailAlreadyExists(email)) {
+            if (isEmailAlreadyExists(email, user)) {
                 return ResponseEntity.ok("Contact with that email exists");
             }
         }
 
         // Перевірка унікальності номерів телефонів контакту
         for (String phoneNumber : contact.getPhoneNumbers()) {
-            if (isPhoneNumberAlreadyExists(phoneNumber)) {
+            if (isPhoneNumberAlreadyExists(phoneNumber, user)) {
                 return ResponseEntity.ok("Contact with that phone number exists");
             }
         }
         String token = authorizationHeader.substring(7);
         // Додавання контакту
         contact.setUser(userRepository.findByLogin(tokenUtils.getUsername(token)));
-        Contact addedContact = contactRepository.save(contact);
+        contactRepository.save(contact);
         return ResponseEntity.ok("Contact has been added");
     }
 
-    private boolean isPhoneNumberAlreadyExists(String phoneNumber) {
-        List<Contact> contacts = contactRepository.findAll();
+    private boolean isPhoneNumberAlreadyExists(String phoneNumber, User user) {
+        List<Contact> contacts = user.getContacts();
         for (Contact contact : contacts) {
             Set<String> phones = contact.getPhoneNumbers();
             if (phones.contains(phoneNumber)) {
@@ -111,8 +120,8 @@ public class ContactService {
     }
 
 
-    public boolean isPhoneNumberAlreadyExists(String phoneNumber, Contact existingContact) {
-        List<Contact> contacts = contactRepository.findAll();
+    public boolean isPhoneNumberAlreadyExists(String phoneNumber, Contact existingContact, User user) {
+        List<Contact> contacts = user.getContacts();
         for (Contact contact : contacts) {
             if (contact.equals(existingContact)) {
                 continue; // Ігноруємо перевірку для існуючого контакту
@@ -138,15 +147,16 @@ public class ContactService {
     }
 
 
-    public ResponseEntity<?> editContact(String name, Contact newContact) {
+    public ResponseEntity<?> editContact(String name, Contact newContact, User user) {
         // Перевірка, чи існує контакт з вказаним ім'ям
-        Contact existingContact = contactRepository.findByName(name);
+        List<Contact> contacts = user.getContacts();
+        Contact existingContact = contacts.stream().filter(c->c.getName().equals(name)).findAny().orElse(null);
         if (existingContact == null) {
             return ResponseEntity.ok("Contact " + name + " does not exist");
         }
 
         // Перевірка, чи існує контакт з новим ім'ям, виключаючи поточний контакт
-        if (!existingContact.getName().equals(newContact.getName()) && contactRepository.findByName(newContact.getName()) != null) {
+        if (!existingContact.getName().equals(newContact.getName()) && contacts.stream().anyMatch(c->c.getName().equals(newContact.getName()))){
             return ResponseEntity.ok("Contact with that name already exists");
         }
 
@@ -155,7 +165,7 @@ public class ContactService {
             if (!isValidEmail(email)) {
                 return ResponseEntity.ok("Invalid email format: " + email);
             }
-            if (isEmailAlreadyExists(email, existingContact)) {
+            if (isEmailAlreadyExists(email, existingContact, user)) {
                 return ResponseEntity.ok("Contact with that email already exists");
             }
         }
@@ -165,7 +175,7 @@ public class ContactService {
             if (!isValidPhoneNumber(phoneNumber)) {
                 return ResponseEntity.ok("Invalid phone number format: " + phoneNumber);
             }
-            if (isPhoneNumberAlreadyExists(phoneNumber, existingContact)) {
+            if (isPhoneNumberAlreadyExists(phoneNumber, existingContact, user)) {
                 return ResponseEntity.ok("Contact with that phone number already exists");
             }
         }

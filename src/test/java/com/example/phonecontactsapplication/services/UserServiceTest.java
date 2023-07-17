@@ -1,6 +1,5 @@
 package com.example.phonecontactsapplication.services;
 
-import com.example.phonecontactsapplication.dtos.RegistrationUserDto;
 import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.repositories.UserRepository;
 import org.junit.jupiter.api.Assertions;
@@ -57,26 +56,33 @@ class UserServiceTest {
         });
     }
 
+
     @Test
     public void testCreateNewUser_Success() {
         // Arrange
-        RegistrationUserDto registrationUserDto = new RegistrationUserDto();
-        registrationUserDto.setLogin("john");
-        registrationUserDto.setPassword("password");
+        String login = "john.doe";
+        String password = "password";
         String encodedPassword = "encodedPassword";
+        User newUser = new User();
+        newUser.setLogin(login);
+        newUser.setPassword(password);
+
         User savedUser = new User();
-        savedUser.setLogin(registrationUserDto.getLogin());
+        savedUser.setLogin(login);
         savedUser.setPassword(encodedPassword);
-        Mockito.when(passwordEncoder.encode(registrationUserDto.getPassword())).thenReturn(encodedPassword);
+
+        Mockito.when(passwordEncoder.encode(password)).thenReturn(encodedPassword);
         Mockito.when(userRepository.save(Mockito.any(User.class))).thenReturn(savedUser);
 
         // Act
-        User createdUser = userService.createNewUser(registrationUserDto);
+        User createdUser = userService.createNewUser(newUser);
 
         // Assert
-        Assertions.assertEquals(registrationUserDto.getLogin(), createdUser.getLogin());
+        Assertions.assertEquals(login, createdUser.getLogin());
         Assertions.assertEquals(encodedPassword, createdUser.getPassword());
+        Mockito.verify(passwordEncoder).encode(password);
         Mockito.verify(userRepository, Mockito.times(1)).save(Mockito.any(User.class));
     }
+
 
 }

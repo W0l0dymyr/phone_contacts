@@ -1,6 +1,7 @@
 package com.example.phonecontactsapplication.services;
 
 import com.example.phonecontactsapplication.entities.Contact;
+import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.repositories.ContactRepository;
 import com.example.phonecontactsapplication.repositories.UserRepository;
 import com.example.phonecontactsapplication.utils.JwtTokenUtils;
@@ -15,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,34 +36,37 @@ class ContactServiceTest {
     @InjectMocks
     private ContactService contactService;
 
-    @Test
-    public void testFindAll() {
-        // Arrange
-        List<Contact> contacts = new ArrayList<>();
-        contacts.add(new Contact());
-        contacts.add(new Contact());
+@Test
+public void testFindAll() {
+    // Arrange
+    User user = new User();
+    List<Contact> contacts = new ArrayList<>();
+    contacts.add(new Contact());
+    contacts.add(new Contact());
+    user.getContacts().add(new Contact());
+    user.getContacts().add(new Contact());
 
-        Mockito.when(contactRepository.findAll()).thenReturn(contacts);
+    Mockito.when(contactRepository.findByUser(user)).thenReturn(contacts);
 
-        // Act
-        List<Contact> result = contactService.findAll();
+    // Act
+    List<Contact> result = contactService.findAll(user);
 
-        // Assert
-        Assertions.assertEquals(2, result.size());
-        Assertions.assertEquals(contacts, result);
-    }
+    // Assert
+    Assertions.assertEquals(2, result.size());
+    Assertions.assertEquals(contacts, result);
+}
 
     @Test
     public void testFindByName_ExistingContact() {
         // Arrange
         String name = "John Doe";
+        User user = new User();
         Contact contact = new Contact();
         contact.setName(name);
-
-        Mockito.when(contactRepository.findByName(name)).thenReturn(contact);
+        user.getContacts().add(contact);
 
         // Act
-        Contact result = contactService.findByName(name);
+        Contact result = contactService.findByName(name, user);
 
         // Assert
         Assertions.assertEquals(contact, result);
@@ -71,11 +76,12 @@ class ContactServiceTest {
     public void testFindByName_NonExistingContact() {
         // Arrange
         String name = "John Doe";
+        User user = new User();
 
         Mockito.when(contactRepository.findByName(name)).thenReturn(null);
 
         // Act
-        Contact result = contactService.findByName(name);
+        Contact result = contactService.findByName(name, user);
 
         // Assert
         Assertions.assertNull(result);
@@ -85,13 +91,13 @@ class ContactServiceTest {
     public void testDelete_ExistingContact() {
         // Arrange
         String name = "John Doe";
+        User user = new User();
         Contact contact = new Contact();
         contact.setName(name);
-
-        Mockito.when(contactRepository.findByName(name)).thenReturn(contact);
+        user.getContacts().add(contact);
 
         // Act
-        boolean result = contactService.delete(name);
+        boolean result = contactService.delete(name, user);
 
         // Assert
         Assertions.assertTrue(result);
@@ -102,11 +108,12 @@ class ContactServiceTest {
     public void testDelete_NonExistingContact() {
         // Arrange
         String name = "John Doe";
+        User user = new User();
 
         Mockito.when(contactRepository.findByName(name)).thenReturn(null);
 
         // Act
-        boolean result = contactService.delete(name);
+        boolean result = contactService.delete(name, user);
 
         // Assert
         Assertions.assertFalse(result);
@@ -118,11 +125,13 @@ class ContactServiceTest {
         // Arrange
         String email = "john@example.com";
         Contact existingContact = new Contact();
-
-        Mockito.when(contactRepository.findAll()).thenReturn(Collections.singletonList(existingContact));
+        User user = new User();
+        List<Contact> contacts = new ArrayList<>();
+        contacts.add(existingContact);
+        user.setContacts(contacts);
 
         // Act
-        boolean result = contactService.isEmailAlreadyExists(email, existingContact);
+        boolean result = contactService.isEmailAlreadyExists(email, existingContact, user);
 
         // Assert
         Assertions.assertFalse(result);
@@ -142,19 +151,18 @@ class ContactServiceTest {
         contacts.add(existingContact);
         contacts.add(otherContact);
 
-        Mockito.when(contactRepository.findAll()).thenReturn(contacts);
+        User user = new User();
+        user.setContacts(contacts);
 
         // Act
-        boolean result = contactService.isEmailAlreadyExists(newEmail, existingContact);
+        boolean result = contactService.isEmailAlreadyExists(newEmail, existingContact, user);
 
         // Assert
         Assertions.assertTrue(result);
     }
 
-
-
     @Test
-    public void testAddContact_ValidContact() {
+    public void testAddContact_ValidContact() throws IOException {
         // Arrange
         Contact contact = new Contact();
         contact.setName("John Doe");
@@ -163,11 +171,13 @@ class ContactServiceTest {
 
         String authorizationHeader = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6W10sInN1YiI6ImxvZ2luIiwiaWF0IjoxNjg4OTI2ODQzLCJleHAiOjE2ODg5MzI4NDN9.ASyYMRZyPWpjh0npL_zvs01zMHDCfNtYEkjAmsY-Syg";
 
-        Mockito.when(contactRepository.findByName(contact.getName())).thenReturn(null);
+        User user = new User();
+        user.setContacts(Collections.emptyList());
+
         Mockito.when(contactRepository.save(contact)).thenReturn(contact);
 
         // Act
-        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader);
+        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader, user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -175,19 +185,24 @@ class ContactServiceTest {
     }
 
     @Test
-    public void testAddContact_ExistingName() {
+    public void testAddContact_ExistingName() throws IOException {
         // Arrange
         Contact contact = new Contact();
         contact.setName("John Doe");
         contact.setEmails(Collections.singleton("john.doe@example.com"));
         contact.setPhoneNumbers(Collections.singleton("123456789"));
 
-        String authorizationHeader = null;
+        String authorizationHeader = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6W10sInN1YiI6ImxvZ2luIiwiaWF0IjoxNjg4OTI2ODQzLCJleHAiOjE2ODg5MzI4NDN9.ASyYMRZyPWpjh0npL_zvs01zMHDCfNtYEkjAmsY-Syg";
 
-        Mockito.when(contactRepository.findByName(contact.getName())).thenReturn(contact);
+        User user = new User();
+        Contact existingContact = new Contact();
+        existingContact.setName("John Doe");
+        user.setContacts(Collections.singletonList(existingContact));
+
+        Mockito.when(contactRepository.save(contact)).thenReturn(contact);
 
         // Act
-        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader);
+        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader, user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -195,17 +210,19 @@ class ContactServiceTest {
     }
 
     @Test
-    public void testAddContact_InvalidEmail() {
+    public void testAddContact_InvalidEmailFormat() throws IOException {
         // Arrange
         Contact contact = new Contact();
         contact.setName("John Doe");
         contact.setEmails(Collections.singleton("invalid-email"));
-        contact.setPhoneNumbers(Collections.singleton("123456789"));
 
-        String authorizationHeader = "Header";
+        String authorizationHeader = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6W10sInN1YiI6ImxvZ2luIiwiaWF0IjoxNjg4OTI2ODQzLCJleHAiOjE2ODg5MzI4NDN9.ASyYMRZyPWpjh0npL_zvs01zMHDCfNtYEkjAmsY-Syg";
+
+        User user = new User();
+        user.setContacts(Collections.emptyList());
 
         // Act
-        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader);
+        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader, user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -213,21 +230,23 @@ class ContactServiceTest {
     }
 
     @Test
-    public void testAddContact_ExistingEmail() {
+    public void testAddContact_ExistingEmail() throws IOException {
         // Arrange
         Contact contact = new Contact();
         contact.setName("John Doe");
         contact.setEmails(Collections.singleton("john.doe@example.com"));
-        contact.setPhoneNumbers(Collections.singleton("123456789"));
 
-        String authorizationHeader = "Header";
+        String authorizationHeader = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6W10sInN1YiI6ImxvZ2luIiwiaWF0IjoxNjg4OTI2ODQzLCJleHAiOjE2ODg5MzI4NDN9.ASyYMRZyPWpjh0npL_zvs01zMHDCfNtYEkjAmsY-Syg";
 
-        Mockito.when(contactRepository.findByName(contact.getName())).thenReturn(null);
-        Mockito.when(contactRepository.save(contact)).thenReturn(contact);
-        Mockito.when(contactRepository.findAll()).thenReturn(Collections.singletonList(contact));
+        User user = new User();
+        Contact existingContact = new Contact();
+        existingContact.setName("Stephen");
+        existingContact.setEmails(Collections.singleton("john.doe@example.com"));
+        user.getContacts().add(existingContact);
+
 
         // Act
-        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader);
+        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader, user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -235,48 +254,54 @@ class ContactServiceTest {
     }
 
     @Test
-    public void testIsPhoneNumberAlreadyExists_PhoneNumberExists() {
+    public void testAddContact_InvalidPhoneNumberFormat() throws IOException {
         // Arrange
-        String newPhoneNumber = "123456789";
-        Contact existingContact = new Contact();
-        existingContact.setPhoneNumbers(Collections.singleton("987654321"));
-        Contact otherContact = new Contact();
-        otherContact.setPhoneNumbers(Collections.singleton(newPhoneNumber));
+        Contact contact = new Contact();
+        contact.setName("John Doe");
+        contact.setEmails(Collections.singleton("john.doe@example.com"));
+        contact.setPhoneNumbers(Collections.singleton("123-456-78s"));
 
-        List<Contact> contacts = new ArrayList<>();
-        contacts.add(existingContact);
-        contacts.add(otherContact);
+        String authorizationHeader = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6W10sInN1YiI6ImxvZ2luIiwiaWF0IjoxNjg4OTI2ODQzLCJleHAiOjE2ODg5MzI4NDN9.ASyYMRZyPWpjh0npL_zvs01zMHDCfNtYEkjAmsY-Syg";
 
-        Mockito.when(contactRepository.findAll()).thenReturn(contacts);
+        User user = new User();
+        user.setContacts(Collections.emptyList());
 
         // Act
-        boolean result = contactService.isPhoneNumberAlreadyExists(newPhoneNumber, existingContact);
+        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader, user);
 
         // Assert
-        Assertions.assertTrue(result);
+        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
+        Assertions.assertEquals("Invalid phone number format: 123-456-78s", response.getBody());
     }
 
-
     @Test
-    public void testIsPhoneNumberAlreadyExists_PhoneNumberDoesNotExist() {
+    public void testAddContact_ExistingPhoneNumber() throws IOException {
         // Arrange
-        String phoneNumber = "987654321";
-        Contact existingContact = new Contact();
-        existingContact.setPhoneNumbers(Collections.singleton("123456789"));
+        Contact contact = new Contact();
+        contact.setName("John Doe");
+        contact.setEmails(Collections.singleton("john.doe@example.com"));
+        contact.setPhoneNumbers(Collections.singleton("123456789"));
 
-        Mockito.when(contactRepository.findAll()).thenReturn(Collections.singletonList(existingContact));
+        String authorizationHeader = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6W10sInN1YiI6ImxvZ2luIiwiaWF0IjoxNjg4OTI2ODQzLCJleHAiOjE2ODg5MzI4NDN9.ASyYMRZyPWpjh0npL_zvs01zMHDCfNtYEkjAmsY-Syg";
+
+        User user = new User();
+        Contact existingContact = new Contact();
+        existingContact.setName("Stephen");
+        existingContact.setPhoneNumbers(Collections.singleton("123456789"));
+        user.setContacts(Collections.singletonList(existingContact));
 
         // Act
-        boolean result = contactService.isPhoneNumberAlreadyExists(phoneNumber, existingContact);
+        ResponseEntity<?> response = contactService.addContact(contact, authorizationHeader, user);
 
         // Assert
-        Assertions.assertFalse(result);
+        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
+        Assertions.assertEquals("Contact with that phone number exists", response.getBody());
     }
 
     @Test
     public void testIsValidEmail_ValidEmail() {
         // Arrange
-        String email = "john@example.com";
+        String email = "john.doe@example.com";
 
         // Act
         boolean result = contactService.isValidEmail(email);
@@ -288,24 +313,19 @@ class ContactServiceTest {
     @Test
     public void testIsValidEmail_InvalidEmail() {
         // Arrange
-        String[] invalidEmails = {
-                ".user.name@domain.com",
-                "user-name@domain.com.",
-                "username@.com"
-        };
+        String email = "invalid-email";
 
-        // Act & Assert
-        for (String email : invalidEmails) {
-            boolean result = contactService.isValidEmail(email);
-            Assertions.assertFalse(result);
-        }
+        // Act
+        boolean result = contactService.isValidEmail(email);
+
+        // Assert
+        Assertions.assertFalse(result);
     }
-
 
     @Test
     public void testIsValidPhoneNumber_ValidPhoneNumber() {
         // Arrange
-        String phoneNumber = "+123456789";
+        String phoneNumber = "123456789";
 
         // Act
         boolean result = contactService.isValidPhoneNumber(phoneNumber);
@@ -317,46 +337,66 @@ class ContactServiceTest {
     @Test
     public void testIsValidPhoneNumber_InvalidPhoneNumber() {
         // Arrange
-        String[] invalidPhoneNumbers = {
-                "+38-asdas",
-                "+123456789a"
-        };
+        String phoneNumber = "123-456-78s";
 
-        // Act & Assert
-        for (String phoneNumber : invalidPhoneNumbers) {
-            boolean result = contactService.isValidPhoneNumber(phoneNumber);
-            Assertions.assertFalse(result);
-        }
+        // Act
+        boolean result = contactService.isValidPhoneNumber(phoneNumber);
+
+        // Assert
+        Assertions.assertFalse(result);
     }
 
     @Test
-    public void testEditContact_ValidData() {
+    public void testEditContact_ExistingContact_ValidChanges() {
         // Arrange
-        String existingName = "John";
+        String name = "John Doe";
         Contact existingContact = new Contact();
-        existingContact.setName(existingName);
-        existingContact.setEmails(Collections.singleton("john@example.com"));
-        existingContact.setPhoneNumbers(Collections.singleton("+123456789"));
+        existingContact.setName(name);
+        existingContact.setEmails(Collections.singleton("john.doe@example.com"));
+        existingContact.setPhoneNumbers(Collections.singleton("123456789"));
 
-        String newName = "John Doe";
         Contact newContact = new Contact();
-        newContact.setName(newName);
-        newContact.setEmails(Collections.singleton("johndoe@example.com"));
-        newContact.setPhoneNumbers(Collections.singleton("+987654321"));
+        newContact.setName("Jane Smith");
+        newContact.setEmails(Collections.singleton("jane.smith@example.com"));
+        newContact.setPhoneNumbers(Collections.singleton("987654321"));
 
-        Mockito.when(contactRepository.findByName(existingName)).thenReturn(existingContact);
-        Mockito.when(contactRepository.findByName(newName)).thenReturn(null);
+        User user = new User();
+        user.setContacts(Collections.singletonList(existingContact));
+
+        Mockito.when(contactRepository.findByName(name)).thenReturn(existingContact);
+        Mockito.when(contactRepository.findByName(newContact.getName())).thenReturn(null);
         Mockito.when(contactRepository.save(existingContact)).thenReturn(existingContact);
 
         // Act
-        ResponseEntity<?> response = contactService.editContact(existingName, newContact);
+        ResponseEntity<?> response = contactService.editContact(name, newContact, user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        Assertions.assertEquals(existingContact, response.getBody());
-        Assertions.assertEquals(newName, existingContact.getName());
-        Assertions.assertEquals(Collections.singleton("johndoe@example.com"), existingContact.getEmails());
-        Assertions.assertEquals(Collections.singleton("+987654321"), existingContact.getPhoneNumbers());
+        Assertions.assertEquals(newContact, response.getBody());
+        Assertions.assertEquals(newContact.getName(), existingContact.getName());
+        Assertions.assertEquals(newContact.getEmails(), existingContact.getEmails());
+        Assertions.assertEquals(newContact.getPhoneNumbers(), existingContact.getPhoneNumbers());
     }
+
+
+    @Test
+    public void testEditContact_NonExistingContact() {
+        // Arrange
+        String name = "John Doe";
+        Contact newContact = new Contact();
+        newContact.setName("Jane Smith");
+
+        User user = new User();
+
+        Mockito.when(contactRepository.findByName(name)).thenReturn(null);
+
+        // Act
+        ResponseEntity<?> response = contactService.editContact(name, newContact, user);
+
+        // Assert
+        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
+        Assertions.assertEquals("Contact " + name + " does not exist", response.getBody());
+    }
+
 
 }

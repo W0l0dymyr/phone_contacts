@@ -1,6 +1,5 @@
 package com.example.phonecontactsapplication.services;
 
-import com.example.phonecontactsapplication.dtos.RegistrationUserDto;
 import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,10 +36,8 @@ public class UserService implements UserDetailsService {
         return Optional.ofNullable(userRepository.findByLogin(login));
     }
 
-    public User createNewUser(RegistrationUserDto registrationUserDto) {
-        User user = new User();
-        user.setLogin(registrationUserDto.getLogin());
-        user.setPassword(passwordEncoder.encode(registrationUserDto.getPassword()));
+    public User createNewUser(User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
     }
 

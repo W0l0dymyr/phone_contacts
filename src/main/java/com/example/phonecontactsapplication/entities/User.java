@@ -90,4 +90,5 @@ public class User implements UserDetails {
     public void setContacts(List<Contact> contacts) {
         this.contacts = contacts;
     }
+
 }

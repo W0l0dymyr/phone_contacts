@@ -2,7 +2,6 @@ package com.example.phonecontactsapplication.services;
 
 import com.example.phonecontactsapplication.dtos.JwtRequest;
 import com.example.phonecontactsapplication.dtos.JwtResponse;
-import com.example.phonecontactsapplication.dtos.RegistrationUserDto;
 import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.utils.JwtTokenUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,9 +34,9 @@ public class AuthService {
         return ResponseEntity.ok(new JwtResponse(token));
     }
 
-    public ResponseEntity<?> createNewUser(@RequestBody RegistrationUserDto registrationUserDto) {
-        String login = registrationUserDto.getLogin();
-        String password = registrationUserDto.getPassword();
+    public ResponseEntity<?> createNewUser(@RequestBody User user) {
+        String login = user.getLogin();
+        String password = user.getPassword();
 
         // Перевірка на порожні значення
         if (login == null || login.isEmpty()) {
@@ -51,7 +50,7 @@ public class AuthService {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login already exists");
         }
 
-        User user = userService.createNewUser(registrationUserDto);
+        User newUser = userService.createNewUser(user);
         return ResponseEntity.ok("User " + user.getLogin() + " is successfully registered");
     }
 

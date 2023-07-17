@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Entity
@@ -70,5 +71,16 @@ public class Contact {
         this.phoneNumbers = phoneNumbers;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Contact contact = (Contact) o;
+        return Objects.equals(id, contact.id) && Objects.equals(name, contact.name) && Objects.equals(emails, contact.emails) && Objects.equals(phoneNumbers, contact.phoneNumbers) && Objects.equals(user, contact.user);
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, emails, phoneNumbers, user);
+    }
 }

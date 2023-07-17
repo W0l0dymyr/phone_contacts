@@ -1,7 +1,7 @@
 package com.example.phonecontactsapplication.controllers;
 
 import com.example.phonecontactsapplication.dtos.JwtRequest;
-import com.example.phonecontactsapplication.dtos.RegistrationUserDto;
+import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +21,8 @@ public class UserController{
     }
 
     @PostMapping("/registration")
-    public ResponseEntity<?> createNewUser(@RequestBody RegistrationUserDto registrationUserDto) {
-        return authService.createNewUser(registrationUserDto);
+    public ResponseEntity<?> createNewUser(@RequestBody User user) {
+        return authService.createNewUser(user);
     }
 
 }

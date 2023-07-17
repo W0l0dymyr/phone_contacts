@@ -2,7 +2,6 @@ package com.example.phonecontactsapplication.services;
 
 import com.example.phonecontactsapplication.dtos.JwtRequest;
 import com.example.phonecontactsapplication.dtos.JwtResponse;
-import com.example.phonecontactsapplication.dtos.RegistrationUserDto;
 import com.example.phonecontactsapplication.entities.User;
 import com.example.phonecontactsapplication.utils.JwtTokenUtils;
 import org.junit.jupiter.api.Assertions;
@@ -18,6 +17,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.Optional;
@@ -25,6 +25,9 @@ import java.util.Optional;
 @SpringBootTest
 @ExtendWith(SpringExtension.class)
 class AuthServiceTest {
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
     @Mock
     private UserService userService;
 
@@ -76,28 +79,33 @@ class AuthServiceTest {
     @Test
     public void testCreateNewUser_ValidUser() {
         // Arrange
-        RegistrationUserDto registrationUserDto = new RegistrationUserDto("john", "password");
         User user = new User();
-        user.setLogin(registrationUserDto.getLogin());
-        Mockito.when(userService.findByLogin(registrationUserDto.getLogin())).thenReturn(Optional.empty());
-        Mockito.when(userService.createNewUser(registrationUserDto)).thenReturn(user);
+        user.setLogin("john");
+        user.setPassword("password");
+
+        Mockito.when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         // Act
-        ResponseEntity<?> response = authService.createNewUser(registrationUserDto);
+        ResponseEntity<?> response = authService.createNewUser(user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("User john is successfully registered", response.getBody());
     }
 
+
+
+
     @Test
     public void testCreateNewUser_LoginAlreadyExists() {
         // Arrange
-        RegistrationUserDto registrationUserDto = new RegistrationUserDto("john", "password");
-        Mockito.when(userService.findByLogin(registrationUserDto.getLogin())).thenReturn(Optional.of(new User()));
+        User user = new User();
+        user.setLogin("john");
+        user.setPassword("password");
+        Mockito.when(userService.findByLogin("john")).thenReturn(Optional.of(new User()));
 
         // Act
-        ResponseEntity<?> response = authService.createNewUser(registrationUserDto);
+        ResponseEntity<?> response = authService.createNewUser(user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -107,10 +115,10 @@ class AuthServiceTest {
     @Test
     public void testCreateNewUser_EmptyLogin() {
         // Arrange
-        RegistrationUserDto registrationUserDto = new RegistrationUserDto("", "password");
+        User user = new User();
 
         // Act
-        ResponseEntity<?> response = authService.createNewUser(registrationUserDto);
+        ResponseEntity<?> response = authService.createNewUser(user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -120,10 +128,11 @@ class AuthServiceTest {
     @Test
     public void testCreateNewUser_EmptyPassword() {
         // Arrange
-        RegistrationUserDto registrationUserDto = new RegistrationUserDto("john", "");
+        User user = new User();
+        user.setLogin("john");
 
         // Act
-        ResponseEntity<?> response = authService.createNewUser(registrationUserDto);
+        ResponseEntity<?> response = authService.createNewUser(user);
 
         // Assert
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
